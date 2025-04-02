@@ -1,0 +1,72 @@
+services:
+  # Frontend React application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Backend API with GoLang and Gin
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      - DB_HOST=postgres
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=${DB_NAME:-productapp}
+      - DB_PORT=5432
+      - GIN_MODE=release
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_here}
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-productapp}
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Nginx Web Server
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  uploads_data:
